@@ -28,8 +28,26 @@
 
     'use strict';
 
+    angular.module("app").controller("DurationPickerController",
+        DurationPickerController);
+
+    function DurationPickerController($scope, $rootScope, $timeout,
+                                      DurationPickerService) {
+
+        var vm = this;
+
+        vm.DurationPickerService = DurationPickerService;
+
+        // Call in a timeout so the selector can close before loading.
+        $scope.$watch('vm.DurationPickerService.duration', function() {
+            $timeout(function() {
+                $rootScope.$broadcast("durationChanged");
+            });
+        });
+    }
+
     app.controller("NavBarController", function($routeParams, $scope, $modal,
-        $location, EventRepository, $timeout, Mousetrap) {
+                                                $location, EventRepository, $timeout, Mousetrap) {
 
         $scope.$routeParams = $routeParams;
         $scope.$location = $location;
@@ -75,7 +93,7 @@
     });
 
     app.controller("EventDetailController", function($scope, Mousetrap, Config,
-        ElasticSearch, EventRepository, Util) {
+                                                     ElasticSearch, EventRepository, Util) {
 
         var vm = this;
 

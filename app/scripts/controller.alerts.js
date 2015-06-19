@@ -32,7 +32,8 @@
         AlertsController);
 
     function AlertsController($scope, EventRepository, $routeParams,
-                              $location, baseUrl, Mousetrap, Util, $timeout, NotificationService) {
+                              $location, baseUrl, Mousetrap, Util, $timeout,
+                              NotificationService, DurationPickerService) {
 
         var vm = this;
         vm.$routeParams = $routeParams;
@@ -279,9 +280,21 @@
             vm.loading = true;
             vm.activeRowIndex = 0;
 
+            var filters = _.cloneDeep(vm.filters);
+
+            if (DurationPickerService.hasDuration()) {
+                filters.push({
+                    range: {
+                        "@timestamp": {
+                            "gte": moment().subtract(DurationPickerService.getDuration()).toDate()
+                        }
+                    }
+                });
+            }
+
             if ($routeParams.view == "flat") {
                 EventRepository.getEvents({
-                    filters: vm.filters,
+                    filters: filters,
                     query: $routeParams.q,
                     page: $routeParams.page
                 }).then(
@@ -301,7 +314,7 @@
             }
             else if ($routeParams.view == "signature") {
                 EventRepository.getAlertsGroupedBySignature({
-                    filters: vm.filters,
+                    filters: filters,
                     query: $routeParams.q
                 }).then(
                     function(result) {
@@ -321,7 +334,7 @@
             }
             else if ($routeParams.view == "signature+src") {
                 EventRepository.getAlertsGroupedBySignatureAndSource({
-                    filters: vm.filters,
+                    filters: filters,
                     query: $routeParams.q
                 }).then(
                     function(result) {
@@ -351,6 +364,10 @@
                 EventRepository.toggleStar(event);
             }
         };
+
+        $scope.$on('durationChanged', function() {
+            load();
+        });
 
         // Init.
         (function() {
@@ -408,8 +425,7 @@
 
         })();
 
-    }
-    ;
+    };
 
 })();
 

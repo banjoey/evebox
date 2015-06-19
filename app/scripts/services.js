@@ -26,291 +26,325 @@
 
 'use strict';
 
-/**
- * Service containing utility functions.
- */
-app.factory("Util", function () {
-
-    var service = {};
+(function() {
 
     /**
-     * Return an object as JSON.  Used in EveBox mainly for rendering search
-     * results as JSON.
-     *
-     * Fields prefixed with __ are filtered out as those are internal state
-     * variables for the application.
+     * Service containing utility functions.
      */
-    service.toJson = function (data, pretty) {
-        var filtered = _.pick(data, function (value, key) {
-            return key.substring(0, 2) != "__";
-        });
-        return angular.toJson(filtered, pretty);
-    };
+    app.factory("Util", function() {
 
-    service.colourizeJson = function(json) {
-        json = json.replace(/&/g, '&').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-            var cls = 'number';
-            if (/^"/.test(match)) {
-                if (/:$/.test(match)) {
-                    cls = 'key';
-                } else {
-                    cls = 'string';
-                }
-            } else if (/true|false/.test(match)) {
-                cls = 'boolean';
-            } else if (/null/.test(match)) {
-                cls = 'null';
+        var service = {};
+
+        /**
+         * Return an object as JSON.  Used in EveBox mainly for rendering search
+         * results as JSON.
+         *
+         * Fields prefixed with __ are filtered out as those are internal state
+         * variables for the application.
+         */
+        service.toJson = function(data, pretty) {
+            var filtered = _.pick(data, function(value, key) {
+                return key.substring(0, 2) != "__";
+            });
+            return angular.toJson(filtered, pretty);
+        };
+
+        service.colourizeJson = function(json) {
+            json = json.replace(/&/g, '&').replace(/</g, '&lt;').replace(/>/g,
+                '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+                function(match) {
+                    var cls = 'number';
+                    if (/^"/.test(match)) {
+                        if (/:$/.test(match)) {
+                            cls = 'key';
+                        } else {
+                            cls = 'string';
+                        }
+                    } else if (/true|false/.test(match)) {
+                        cls = 'boolean';
+                    } else if (/null/.test(match)) {
+                        cls = 'null';
+                    }
+                    return '<span class="' + cls + '">' + match + '</span>';
+                });
+        };
+
+        /**
+         * Format a string.
+         *
+         * Example: formatString("This is a {} {}.", "format", "string");
+         */
+        service.printf = function(format) {
+            var buf = arguments[0];
+            var args = Array.prototype.slice.call(arguments, 1);
+
+            for (var i = 0; i < args.length; i++) {
+                buf = buf.replace("{}", args[i]);
             }
-            return '<span class="' + cls + '">' + match + '</span>';
-        });
-    };
+
+            return buf;
+        };
+
+        /**
+         * Format and log a message.
+         */
+        service.log = function(format) {
+            var msg = service.printf.apply(this, arguments);
+            console.log(msg);
+        };
+
+        /**
+         * Convert an alert severity into a Bootstrap class for colorization.
+         */
+        service.severityToBootstrapClass = function(severity, prefix) {
+            if (prefix === undefined) {
+                prefix = "";
+            }
+            switch (severity) {
+                case 1:
+                    return prefix + "danger";
+                    break;
+                case 2:
+                    return prefix + "warning";
+                    break;
+                default:
+                    return prefix + "info";
+            }
+        };
+
+        service.timestampToFloat = function(timestamp) {
+            var usecs = timestamp.match(/\.(\d+)/)[1] / 1000000;
+            var secs = moment(timestamp).unix();
+            return secs + usecs;
+        };
+
+        service.isBase64 = function(str) {
+            try {
+                atob(str);
+                return true;
+            }
+            catch (error) {
+                return false;
+            }
+        };
+
+        service.base64ToHexArray = function(str) {
+            for (var i = 0, bin = atob(str.replace(/[ \r\n]+$/,
+                "")), hex = []; i
+                 < bin.length; ++i) {
+                var tmp = bin.charCodeAt(i).toString(16);
+                if (tmp.length === 1)
+                    tmp = "0" + tmp;
+                hex[hex.length] = tmp;
+            }
+            return hex;
+        };
+
+        return service;
+    });
+
+    angular.module("app").factory("printf", function() {
+
+        return function(format) {
+            var buf = arguments[0];
+            var args = Array.prototype.slice.call(arguments, 1);
+
+            for (var i = 0; i < args.length; i++) {
+                buf = buf.replace("{}", args[i]);
+            }
+
+            return buf;
+        };
+
+    });
 
     /**
-     * Format a string.
-     *
-     * Example: formatString("This is a {} {}.", "format", "string");
+     * Elastic Search operations.
      */
-    service.printf = function (format) {
-        var buf = arguments[0];
-        var args = Array.prototype.slice.call(arguments, 1);
+    app.factory("ElasticSearch", function($http, Config, printf) {
 
-        for (var i = 0; i < args.length; i ++) {
-            buf = buf.replace("{}", args[i]);
-        }
+        var service = {};
 
-        return buf;
-    };
+        var esUrl = Config.elasticSearch.url;
 
-    /**
-     * Format and log a message.
-     */
-    service.log = function(format) {
-        var msg = service.printf.apply(this, arguments);
-        console.log(msg);
-    };
+        service.logFailure = function(failure) {
+            console.log("elastic search server failure: " + failure);
+        };
 
-    /**
-     * Convert an alert severity into a Bootstrap class for colorization.
-     */
-    service.severityToBootstrapClass = function (severity, prefix) {
-        if (prefix === undefined) {
-            prefix = "";
-        }
-        switch (severity) {
-            case 1:
-                return prefix + "danger";
-                break;
-            case 2:
-                return prefix + "warning";
-                break;
-            default:
-                return prefix + "info";
-        }
-    };
+        /**
+         * Search.
+         */
+        service.search = function(query) {
+            var url = printf("{}/{}/_search?refresh=true",
+                esUrl, Config.elasticSearch.index);
+            return $http.post(url, query);
+        };
 
-    service.timestampToFloat = function (timestamp) {
-        var usecs = timestamp.match(/\.(\d+)/)[1] / 1000000;
-        var secs = moment(timestamp).unix();
-        return secs + usecs;
-    };
+        service.bulk = function(request) {
+            var url = Config.elasticSearch.url + "/_bulk?refresh=true";
+            return $http.post(url, request);
+        };
 
-    service.isBase64 = function (str) {
-        try {
-            atob(str);
-            return true;
-        }
-        catch (error) {
-            return false;
-        }
-    };
+        service.update = function(index, type, id, request) {
+            var url = printf("{}/{}/{}/{}/_update?refresh=true",
+                esUrl, index, type, id);
+            return $http.post(url, request);
+        };
 
-    service.base64ToHexArray = function (str) {
-        for (var i = 0, bin = atob(str.replace(/[ \r\n]+$/, "")), hex = []; i
-        < bin.length; ++ i) {
-            var tmp = bin.charCodeAt(i).toString(16);
-            if (tmp.length === 1)
-                tmp = "0" + tmp;
-            hex[hex.length] = tmp;
-        }
-        return hex;
-    };
+        service.delete = function(index, type, id) {
+            var url = printf("{}/{}/{}/{}?refresh=true",
+                esUrl, index, type, id);
+            return $http.delete(url);
+        };
 
-    return service;
-});
+        service.deleteByQuery = function(request) {
+            var url = printf("{}/{}/_query?refresh=true",
+                esUrl, Config.elasticSearch.index);
+            return $http.delete(url, {data: request});
+        };
 
-angular.module("app").factory("printf", function () {
-
-    return function (format) {
-        var buf = arguments[0];
-        var args = Array.prototype.slice.call(arguments, 1);
-
-        for (var i = 0; i < args.length; i ++) {
-            buf = buf.replace("{}", args[i]);
-        }
-
-        return buf;
-    };
-
-});
-
-/**
- * Elastic Search operations.
- */
-app.factory("ElasticSearch", function ($http, Config, printf) {
-
-    var service = {};
-
-    var esUrl = Config.elasticSearch.url;
-
-    service.logFailure = function (failure) {
-        console.log("elastic search server failure: " + failure);
-    };
-
-    /**
-     * Search.
-     */
-    service.search = function (query) {
-        var url = printf("{}/{}/_search?refresh=true",
-            esUrl, Config.elasticSearch.index);
-        return $http.post(url, query);
-    };
-
-    service.bulk = function (request) {
-        var url = Config.elasticSearch.url + "/_bulk?refresh=true";
-        return $http.post(url, request);
-    };
-
-    service.update = function (index, type, id, request) {
-        var url = printf("{}/{}/{}/{}/_update?refresh=true",
-            esUrl, index, type, id);
-        return $http.post(url, request);
-    };
-
-    service.delete = function (index, type, id) {
-        var url = printf("{}/{}/{}/{}?refresh=true",
-            esUrl, index, type, id);
-        return $http.delete(url);
-    };
-
-    service.deleteByQuery = function (request) {
-        var url = printf("{}/{}/_query?refresh=true",
-            esUrl, Config.elasticSearch.index);
-        return $http.delete(url, {data: request});
-    };
-
-    /**
-     * Get/search for a record by ID.
-     *
-     * Used for getting a single event by ID, but may return multiple results.
-     */
-    service.searchEventById = function (id) {
-        var request = {
-            query: {
-                filtered: {
-                    filter: {
-                        term: {
-                            "_id": id
+        /**
+         * Get/search for a record by ID.
+         *
+         * Used for getting a single event by ID, but may return multiple results.
+         */
+        service.searchEventById = function(id) {
+            var request = {
+                query: {
+                    filtered: {
+                        filter: {
+                            term: {
+                                "_id": id
+                            }
                         }
                     }
                 }
-            }
+            };
+            return service.search(request);
         };
-        return service.search(request);
-    };
 
-    /**
-     * Bulk delete events.
-     *
-     * @param events The list of events to delete.
-     */
-    service.deleteEvents = function (events) {
-        var request = events.map(function (event) {
-                return angular.toJson({
-                    delete: {
-                        _index: event._index,
-                        _type: event._type,
-                        _id: event._id
-                    }
-                });
-            }).join("\n") + "\n";
-        return service.bulk(request);
-    };
+        /**
+         * Bulk delete events.
+         *
+         * @param events The list of events to delete.
+         */
+        service.deleteEvents = function(events) {
+            var request = events.map(function(event) {
+                    return angular.toJson({
+                        delete: {
+                            _index: event._index,
+                            _type: event._type,
+                            _id: event._id
+                        }
+                    });
+                }).join("\n") + "\n";
+            return service.bulk(request);
+        };
 
-    service.bulkRemoveTag = function (events, tag) {
-        var request = events.map(function (event) {
-            return [
-                angular.toJson({
-                    update: {
-                        _index: event._index,
-                        _type: event._type,
-                        _id: event._id
-                    }
-                }),
-                angular.toJson({
-                    lang: "groovy",
-                    script: "ctx._source.tags.remove(tag)",
-                    params: {
-                        "tag": tag
-                    }
+        service.bulkRemoveTag = function(events, tag) {
+            var request = events.map(function(event) {
+                return [
+                    angular.toJson({
+                        update: {
+                            _index: event._index,
+                            _type: event._type,
+                            _id: event._id
+                        }
+                    }),
+                    angular.toJson({
+                        lang: "groovy",
+                        script: "ctx._source.tags.remove(tag)",
+                        params: {
+                            "tag": tag
+                        }
+                    })
+                ];
+            });
+            return service.bulk(_.flatten(request).join("\n") + "\n");
+        };
+
+        service.addTag = function(doc, tag) {
+            var script = 'if (ctx._source.tags) {' +
+                'ctx._source.tags.contains(tag) || ctx._source.tags.add(tag);' +
+                '}' +
+                'else {' +
+                'ctx._source.tags = [tag]' +
+                '}';
+            var request = {
+                "lang": "groovy",
+                script: script,
+                params: {
+                    "tag": tag
+                }
+            };
+            return service.update(doc._index, doc._type, doc._id, request);
+        };
+
+        service.removeTag = function(doc, tag) {
+            var request = {
+                lang: "groovy",
+                script: "ctx._source.tags.remove(tag)",
+                params: {
+                    "tag": tag
+                }
+            };
+            return service.update(doc._index, doc._type, doc._id, request);
+        };
+
+        return service;
+
+    });
+
+    angular.module("app").factory("NotificationService", function($timeout) {
+
+        var service = {};
+
+        service.queue = [];
+
+        service.add = function(level, message) {
+            var entry = {
+                level: level,
+                message: message
+            };
+
+            service.queue.push(entry);
+
+            $timeout(function() {
+                _.remove(service.queue, function(item) {
+                    return item === entry;
                 })
-            ];
-        });
-        return service.bulk(_.flatten(request).join("\n") + "\n");
-    };
+            }, 1500);
+        };
 
-    service.addTag = function (doc, tag) {
-        var script = 'if (ctx._source.tags) {' +
-            'ctx._source.tags.contains(tag) || ctx._source.tags.add(tag);' +
-            '}' +
-            'else {' +
-            'ctx._source.tags = [tag]' +
-            '}';
-        var request = {
-            "lang": "groovy",
-            script: script,
-            params: {
-                "tag": tag
+        return service;
+    });
+
+    angular.module("app").factory("DurationPickerService", function() {
+
+        var parseDuration = function(duration) {
+            var match = duration.match(/(\d+)\s*(.*)/);
+            var value = parseInt(match[1]);
+            var unit = match[2];
+            return moment.duration(value, unit);
+        };
+
+        var service = {};
+
+        service.duration = "1 month";
+
+        service.hasDuration = function() {
+            if (service.duration == "") {
+                return false;
             }
-        };
-        return service.update(doc._index, doc._type, doc._id, request);
-    };
-
-    service.removeTag = function (doc, tag) {
-        var request = {
-            lang: "groovy",
-            script: "ctx._source.tags.remove(tag)",
-            params: {
-                "tag": tag
-            }
-        };
-        return service.update(doc._index, doc._type, doc._id, request);
-    };
-
-    return service;
-
-});
-
-angular.module("app").factory("NotificationService", function ($timeout) {
-
-    var service = {};
-
-    service.queue = [];
-
-    service.add = function (level, message) {
-        var entry = {
-            level: level,
-            message: message
+            return true;
         };
 
-        service.queue.push(entry);
+        service.getDuration = function() {
+            return parseDuration(service.duration);
+        };
 
-        $timeout(function () {
-            _.remove(service.queue, function (item) {
-                return item === entry;
-            })
-        }, 1500);
-    };
+        return service;
+    })
 
-    return service;
-});
+})();

@@ -87,6 +87,20 @@
           <a href="" ng-click="openConfig()">Settings</a>
         </li>
       </ul>
+
+      <form class="navbar-form navbar-right" ng-controller="DurationPickerController as vm">
+        <div class="form-group">
+          <select class="form-control" ng-model="vm.DurationPickerService.duration">
+            <option value="">All</option>
+            <option value="1 month">Last Month</option>
+            <option value="2 week">Last 2 weeks</option>
+            <option value="1 week">Last week</option>'
+            <option value="3 day">Last 3 days</option>
+            <option value="1 day">Last day</option>
+          </select>
+        </div>
+      </form>
+
     </div>
   </div>
 </div>
