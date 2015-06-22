@@ -33,7 +33,8 @@
 
     function AlertsController($scope, EventRepository, $routeParams,
                               $location, baseUrl, Mousetrap, Util, $timeout,
-                              NotificationService, DurationPickerService) {
+                              NotificationService, DurationPickerService,
+                              $modal) {
 
         var vm = this;
         vm.$routeParams = $routeParams;
@@ -120,6 +121,21 @@
 
         vm.open = function(event) {
             if (event.count === undefined) {
+
+                $modal.open({
+                    templateUrl: "event-modal.html",
+                    size: "lg",
+                    controller: "EventDetailController as vm",
+                    scope: {
+                        hit: event
+                    },
+                    resolve: {
+                        event: function() {
+                            return event;
+                        }
+                    }
+                });
+
                 vm.openEvent(event);
             }
             else {
@@ -415,7 +431,9 @@
             vm.filters = [{term: {event_type: "alert"}}];
 
             if (baseUrl == "/inbox") {
-                vm.filters.push({term: {tags: "inbox"}});
+                vm.filters.push({
+                    not: {term: {tags: "archived"}}
+                });
             }
             else if (baseUrl == "/starred") {
                 vm.filters.push({term: {tags: "starred"}});

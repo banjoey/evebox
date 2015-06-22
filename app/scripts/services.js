@@ -264,6 +264,52 @@
             return service.bulk(_.flatten(request).join("\n") + "\n");
         };
 
+        service.bulkAddTag = function(docs, tag) {
+            var script = 'if (ctx._source.tags) {' +
+                'ctx._source.tags.contains(tag) || ctx._source.tags.add(tag);' +
+                '}' +
+                'else {' +
+                'ctx._source.tags = [tag]' +
+                '}';
+            var request = docs.map(function(doc) {
+                return [
+                    angular.toJson({
+                        update: {
+                            _index: doc._index,
+                            _type: doc._type,
+                            _id: doc._id
+                        }
+                    }),
+                    angular.toJson({
+                        lang: "groovy",
+                        script: script,
+                        params: {
+                            "tag": tag
+                        }
+                    })
+                ];
+            });
+            console.log(request);
+            return service.bulk(_.flatten(request).join("\n") + "\n");
+        };
+
+        service.addLabel = function(doc, label) {
+            var script = 'if (ctx._source.labels) {' +
+                'ctx._source.labels.contains(label) || ctx._source.tags.labels(label);' +
+                '}' +
+                'else {' +
+                'ctx._source.labels = [label]' +
+                '}';
+            var request = {
+                "lang": "groovy",
+                script: script,
+                params: {
+                    "tag": tag
+                }
+            };
+            return service.update(doc._index, doc._type, doc._id, request);
+        }
+
         service.addTag = function(doc, tag) {
             var script = 'if (ctx._source.tags) {' +
                 'ctx._source.tags.contains(tag) || ctx._source.tags.add(tag);' +

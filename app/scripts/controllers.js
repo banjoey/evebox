@@ -92,6 +92,15 @@
         }, "Show Help");
     });
 
+    app.controller("TestController", function($scope, event, Util) {
+
+        var vm = this;
+
+        $scope.hit = event;
+        $scope.Util = Util;
+
+    });
+
     app.controller("EventDetailController", function($scope, Mousetrap, Config,
                                                      ElasticSearch, EventRepository, Util) {
 

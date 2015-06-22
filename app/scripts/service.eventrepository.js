@@ -160,12 +160,13 @@
             service.archiveByQuery = function(options) {
 
                 var query = service.buildQueryForGroup(options);
-                query.size = 1000;
+                query.size = 50;
                 query.fields = ["_index", "_type", "_id"];
 
                 return $q(function(resolve, reject) {
 
                     (function execute() {
+
                         ElasticSearch.search(query).then(function(result) {
 
                             Util.log("Found {} events to archive.",
@@ -176,15 +177,26 @@
                                 return;
                             }
 
-                            ElasticSearch.bulkRemoveTag(result.data.hits.hits,
-                                "inbox")
+                            ElasticSearch.bulkAddTag(result.data.hits.hits,
+                                "archived")
                                 .then(function(response) {
                                     console.log("success");
                                     console.log(response);
 
                                     if (response.data.errors == true) {
+                                        console.log("errors occurred.");
                                         // Extract the first error.
-                                        reject(response.data.items[0].update.error);
+
+                                        var items = response.data.items;
+
+                                        for (var i = 0; i < items.length; i++) {
+                                            if (items[i].update.status != 200) {
+                                                reject(items[i].update.error);
+                                                return;
+                                            }
+                                        }
+
+                                        //reject(response.data.items[0].update.error);
                                     }
                                     else {
                                         execute();
