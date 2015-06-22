@@ -2,6 +2,14 @@
 
 (function() {
 
+    angular.module("app").controller("ModalEventController", ModalEventController);
+
+    function ModalEventController($scope, event) {
+
+        $scope.event = event;
+
+    }
+
     angular.module("app").controller("EventDetailController",
         EventDetailController);
 
@@ -9,6 +17,7 @@
                                    ElasticSearch, EventRepository, Util) {
 
         console.log("EventDetailController");
+        console.log(event);
 
         var vm = this;
 

@@ -32,7 +32,9 @@
         AlertsController);
 
     function AlertsController($scope, EventRepository, $routeParams,
-                              $location, baseUrl, Mousetrap, Util, $timeout, NotificationService) {
+                              $location, baseUrl, Mousetrap, Util, $timeout,
+                              $modal,
+                              NotificationService) {
 
         var vm = this;
         vm.$routeParams = $routeParams;
@@ -115,6 +117,21 @@
                 event._source.alert.signature);
             $location.path(baseUrl + "/flat");
             $location.search({q: query.trim()});
+        };
+
+        vm.openModal = function(event) {
+            if (event.count === undefined) {
+                $modal.open({
+                    templateUrl: "templates/modal-event.html",
+                    controller: "ModalEventController",
+                    size: "lg",
+                    resolve: {
+                        event: function() {
+                            return event;
+                        }
+                    }
+                });
+            }
         };
 
         vm.open = function(event) {
@@ -394,6 +411,10 @@
             Mousetrap.bind($scope, "o", function() {
                 vm.open(getActiveEvent());
             }, "Open Event");
+
+            Mousetrap.bind($scope, "O", function() {
+                vm.openModal(getActiveEvent());
+            });
 
             vm.filters = [{term: {event_type: "alert"}}];
 

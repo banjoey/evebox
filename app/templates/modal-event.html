@@ -1,0 +1,7 @@
+<div class="modal-header" ng-class="event | eventTitleClass">
+  {{event | eventTitle}}
+</div>
+<div class="modal-body">
+  <div ng-include="'templates/detail.html'"
+       ng-controller="EventDetailController as vm"></div>
+</div>
